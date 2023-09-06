@@ -1,0 +1,48 @@
+services:
+
+  app:
+    container_name: app
+    build:
+      context: ./requirements/app
+      dockerfile: Dockerfile
+    volumes:
+      - src:/tmp
+
+    networks:
+      - app
+
+    restart: always
+
+  api:
+    container_name: api
+    build:
+      context: ./requirements/api
+      dockerfile: Dockerfile
+    volumes:
+      - api_src:/tmp
+
+    networks:
+      - app
+
+    restart: always
+    entrypoint: go run server.go
+
+networks:
+        app:
+                name: app
+                driver: bridge
+
+volumes:
+  src:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./requirements/app/src
+
+  api_src:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./requirements/api/src
