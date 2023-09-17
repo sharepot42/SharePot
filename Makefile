@@ -5,10 +5,7 @@ RM=rm -rf
 .PHONY: all build clean down follow logs ps re rebuild restart
 
 all:
-	$(COMPOSE) up -d
-
-bonus:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d ${SERVICE}
 
 down:
 	$(COMPOSE) down
@@ -23,7 +20,7 @@ logs:
 	$(COMPOSE) logs
 
 follow:
-	$(COMPOSE) logs --follow
+	$(COMPOSE) logs --follow --tail 200 $(SERVICE)
 
 ps:
 	$(COMPOSE) ps

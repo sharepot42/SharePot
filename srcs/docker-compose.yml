@@ -1,48 +1,85 @@
 services:
 
-  app:
-    container_name: app
+  fastapi:
+    container_name: fastapi
     build:
-      context: ./requirements/app
+      context: ./requirements/fastapi
       dockerfile: Dockerfile
-    volumes:
-      - src:/tmp
 
+    volumes:
+      - fastapi_src:/app
+
+    environment:
+        - POSTGRES_HOST
+        - FASTAPI_USER
+        - FASTAPI_PASS
+        - FASTAPI_DB
+        - HASH_SECRET
+
+    ports:
+      - 8080:80
     networks:
-      - app
+      - fastapi
+
+        #entrypoint: tail -f
+        #restart: always
+
+  postgres:
+    container_name: postgres
+    build:
+      context: ./requirements/postgres
+      dockerfile: Dockerfile
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    environment:
+        - POSTGRES_USER
+        - POSTGRES_PASSWORD
+        - POSTGRES_DB
+        - POSTGRES_HOST
+        - FASTAPI_USER
+        - FASTAPI_PASS
+        - FASTAPI_DB
+    
+    expose:
+    - 5432
+    networks:
+      - fastapi
+
 
     restart: always
-
-  api:
-    container_name: api
-    build:
-      context: ./requirements/api
-      dockerfile: Dockerfile
-    volumes:
-      - api_src:/tmp
-
-    networks:
-      - app
-
-    restart: always
-    entrypoint: go run server.go
 
 networks:
-        app:
-                name: app
+        fastapi:
+                name: fastapi
                 driver: bridge
 
 volumes:
-  src:
+  fastapi_src:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ./requirements/app/src
+      device: ./requirements/fastapi/src
 
-  api_src:
+  postgres_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ./requirements/api/src
+      device: ./data/postgres
+
+  postgres_log:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./log/postgres
+
+  fastapi_log:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./log/fastapi
