@@ -8,10 +8,11 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True)
+    email = Column(String, unique=True)
     password = Column(String)
 
     adminOf = relationship('Group', back_populates='administrator')
-    groups = relationship('UserGroup', back_populates='user')
+    groups = relationship('Group', secondary='user_group', back_populates='users')
 
 class Group(Base):
     __tablename__ = "groups"
@@ -19,10 +20,12 @@ class Group(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True)
     description = Column(String)
+    tax = Column(Integer)
+    pot = Column(Integer)
     admin_user_id = Column(Integer, ForeignKey('users.id'))
 
     administrator = relationship('User', back_populates='adminOf')
-    users = relationship('UserGroup', back_populates='group')
+    users = relationship('User', secondary='user_group', back_populates='groups')
 
 class UserGroup(Base):
     __tablename__ = 'user_group'
@@ -30,6 +33,4 @@ class UserGroup(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
     group_id = Column(Integer, ForeignKey('groups.id'))
-
-    user = relationship('User', back_populates='groups')
-    group = relationship('Group', back_populates='users')
+    state = Column(Boolean)

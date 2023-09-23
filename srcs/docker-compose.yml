@@ -8,13 +8,15 @@ services:
 
     volumes:
       - fastapi_src:/app
+      - fastapi_log:/log/fastapi
+      - fastapi_conf:/tmp/conf
 
     environment:
-        - POSTGRES_HOST
-        - FASTAPI_USER
-        - FASTAPI_PASS
-        - FASTAPI_DB
-        - HASH_SECRET
+      - PATH_LOG
+      - PARAMS
+
+    depends_on:
+      - postgres
 
     ports:
       - 8080:80
@@ -47,7 +49,6 @@ services:
     networks:
       - fastapi
 
-
     restart: always
 
 networks:
@@ -63,6 +64,20 @@ volumes:
       o: bind
       device: ./requirements/fastapi/src
 
+  fastapi_conf:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./requirements/fastapi/conf
+
+  fastapi_log:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./log/fastapi
+
   postgres_data:
     driver: local
     driver_opts:
@@ -76,10 +91,3 @@ volumes:
       type: none
       o: bind
       device: ./log/postgres
-
-  fastapi_log:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./log/fastapi

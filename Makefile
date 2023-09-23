@@ -13,7 +13,7 @@ down:
 build:
 	$(COMPOSE) build --no-cache
 
-refresh:
+rebuild:
 	$(COMPOSE) build
 
 logs:
@@ -32,7 +32,5 @@ clean:
 	sudo $(RM) $(HOME)/data
 
 re: down clean build all follow
-
-rebuild: down refresh all follow
 
 restart: down all follow

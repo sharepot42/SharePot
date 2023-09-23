@@ -6,3 +6,4 @@ psycopg2-binary==2.9.7
 python-multipart==0.0.6
 python-jose[cryptography]
 passlib[bcrypt]
+PyYAML==6.0.1

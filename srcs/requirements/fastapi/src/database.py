@@ -3,10 +3,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-user = os.environ["FASTAPI_USER"]
-password = os.environ["FASTAPI_PASS"]
-host = os.environ["POSTGRES_HOST"]
-database = os.environ["FASTAPI_DB"]
+from . import params
+from .Logger import logger
+
+user = params.PG_USER
+password = params.PG_PASSWORD
+host = params.PG_HOSTNAME
+database = params.PG_DATABASE
 
 #TODO before creating the conection to the database, grant all privileges to the user
 #using:
@@ -21,3 +24,11 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+#dependency
+def getDB():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
