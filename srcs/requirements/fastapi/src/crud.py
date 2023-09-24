@@ -1,45 +1,87 @@
+from fastapi import HTTPException
 from typing import List
 from sqlalchemy.orm import Session
-from . import models, schemas
+from . import models, schemas, params
 from .Logger import logger
+from .GroupFactory import GroupFactory
+
+import time
 
 def deleteUserFromGroup(db: Session, userId: int, groupId: int) -> bool:
     user = db.query(models.UserGroup).filter(
         models.UserGroup.user_id == userId,
         models.UserGroup.group_id == groupId
     ).first()
-    if user:
-        db.delete(user)
-        db.commit()
-        return False
-    return True
+    try:
+        if user:
+            db.delete(user)
+            db.commit()
+            createUserMoveRecord(db, userId, groupId, params.EXIT)
+    except Exception as err:
+        logger.logger.error("Delete user from group")
+        logger.logger.error(err)
+        raise HTTPException(status_code=400, detail="Error: delete user from group failed")
 
 def deleteUserByName(db: Session, user: models.User) -> bool:
-    db.delete(user)
-    db.commit()
-    return False
+    try:
+        db.delete(user)
+        db.commit()
+    except Exception as err:
+        logger.logger.error("Delete user")
+        logger.logger.error(err)
 
-def connecUserListWithGroup(db: Session, groupId: int, userIds: List[int]) -> bool:
-    logger.logger.debug(userIds)
-    logger.logger.debug(groupId)
-    for userId in userIds:
-        connecUserWithGroup(db, userId[0], groupId)
-    db.commit()
-    return False
+def createUserMoveRecord(db: Session, userId: int, groupId: int, state: int):
+    logger.logger.debug("Create new record")
+    currTime = int(time.time())
+    record = GroupFactory.createRecord(db, userId, groupId, currTime, state)
+    logger.logger.debug(record)
+    try:
+        logger.logger.debug(record)
+        logger.logger.debug(record.__dict__)
+        db.add(record)
+        db.commit()
+    except Exception as err:
+        logger.logger.error("Create record from user movement")
+        logger.logger.error(err)
+        raise HTTPException(status_code=400, detail="Error: record creation failed")
 
-def connecUserWithGroup(db: Session, groupId: int, userId: int) -> bool:
-    association = models.UserGroup(user_id=userId, group_id=groupId, state=True)
-    db.add(association)
+def addUserListToGroup(db: Session, group: int, users: List[str]):
+
+    for user in users:
+
+        userId = getSimpleUserByName(db, user)
+        #async
+        if getUserInGroup(db, userId[0], group.id):
+            continue
+
+        addUserToGroup(db, userId[0], group.id)
+        #not wait, just at the end
+        createUserMoveRecord(db, userId[0], group.id, params.ENTRY)
+
+def addUserToGroup(db: Session, userId: int, groupId: int) -> bool:
+    association = models.UserGroup(user_id=userId, group_id=groupId, state=params.STATE_ACTIVATE)
+    try:
+
+        db.add(association)
+        db.commit()
+    except Exception as err:
+        logger.logger.error("Add user to group")
+        logger.logger.error(err)
 
 def getUserList(db: Session, users: List[str]) -> List[models.User]:
-    logger.logger.debug(users)
     return db.query(models.User.id).filter(models.User.username.in_(users)).all()
+
+def getSimpleUserByName(db: Session, username: str) -> models.User:
+    return db.query(models.User.id).filter(models.User.username == username).first()
 
 def getUserByName(db: Session, username: str) -> models.User:
     return db.query(models.User).filter(models.User.username == username).first()
 
 def getGroupByName(db: Session, name: str) -> models.Group:
     return db.query(models.Group).filter(models.Group.name == name).first()
+
+def getSimpleGroupByName(db: Session, name: str) -> models.Group:
+    return db.query(models.Group.id).filter(models.Group.name == name).first()
 
 def getUserInGroup(db: Session, userId: int, groupId: int):
     return db.query(models.UserGroup).filter(
@@ -52,39 +94,34 @@ def setUserState(db: Session, userId: int, groupId: int, state: bool):
         models.UserGroup.user_id == userId,
         models.UserGroup.group_id == groupId
     ).first()
-    logger.logger.debug(userId)
-    logger.logger.debug(groupId)
-    logger.logger.debug(userGroupDb)
     userGroupDb.state = state
     db.commit()
 
 #TODO handle if the user already exists
 def createUser(
         db: Session,
-        user: schemas.UserCreate
+        user: schemas.User
         ) -> schemas.User:
-    dbUser = models.User(
-        username=user.username,
-        password=user.password,
-        email=user.email)
-    db.add(dbUser)
-    db.commit()
-    db.refresh(dbUser)
-    return dbUser
+
+    try:
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except Exception as err:
+        logger.logger.error("Create new user")
+        logger.logger.error(err)
+    return user
 
 def createGroup(
         db: Session,
-        group: schemas.GroupCreate,
-        user_id: int
-        ) -> models.Group:
+        group: models.Group,
+        ) -> models.Group.id:
 
-    dbGroup = models.Group(
-        name=group.name,
-        description=group.description,
-        admin_user_id=user_id,
-        tax=group.tax
-        )
-    db.add(dbGroup)
-    db.commit()
-    db.refresh(dbGroup)
-    return dbGroup
+    try:
+        db.add(group)
+        db.commit()
+        db.refresh(group)
+    except Exception as err:
+        logger.logger.error("Group creation failed because of: ")
+        logger.logger.error(err)
+    return group

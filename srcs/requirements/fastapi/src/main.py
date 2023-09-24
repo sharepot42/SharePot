@@ -47,7 +47,6 @@ async def pathGetCurrUser(
     currUser: Annotated[schemas.AuthUser,
     Depends(auth.getCurrActiveUser)]
     ):
-    logger.logger.info("USERS ME")
     return currUser
 
 @app.delete("/group/deleteUser")
@@ -64,11 +63,12 @@ async def deleteUserFromGroup(
 async def addUserToGroup(
     username: str,
     groupname: str,
-    tax: int,
+    paymentReference: str,
     _: schemas.AuthUser = Depends(auth.getCurrUser),
     db: Session = Depends(database.getDB)
     ):
-    Checker.addUserToGroup(db, username, groupname, tax)
+
+    Checker.addUserToGroup(db, username, groupname, paymentReference)
     return {"message": "User added succerfully"}
 
 @app.patch("/group/deactivateUser")
@@ -78,7 +78,9 @@ async def deactivateUserFromGroup(
     _: schemas.AuthUser = Depends(auth.getCurrUser),
     db: Session = Depends(database.getDB)
     ):
-    Checker.setUserState(db, username, groupname, False)
+
+    logger.logger.debug("START")
+    Checker.setUserState(db, username, groupname, params.STATE_DEACTIVATE)
     return {"message": "User deactivated succerfully"}
 
 @app.patch("/group/activateUser")
@@ -88,7 +90,8 @@ async def activateUserFromGroup(
     _: schemas.AuthUser = Depends(auth.getCurrUser),
     db: Session = Depends(database.getDB)
     ):
-    Checker.setUserState(db, username, groupname, True)
+
+    Checker.setUserState(db, username, groupname, params.STATE_ACTIVATE)
     return {"message": "User activated succerfully"}
 
 @app.post("/newGroup")
@@ -98,7 +101,9 @@ async def newGroup(
     db: Session = Depends(database.getDB)
     ) -> dict:
 
-    _ = groupFactory.createGroup(db, group)    
+    groupDb = groupFactory.createGroup(db, group)    
+
+    Checker.createGroup(db, groupDb, group.user_list)
     return {"message": "new group created"}
 
 @app.post("/newUser")
@@ -107,20 +112,19 @@ async def newUser(
     _: Annotated[schemas.AuthUser, Depends(auth.getCurrActiveUser)],
     db: Session = Depends(database.getDB)) -> dict:
     
-    userDB = userFactory.create_user(db, user)
-    if userDB:
-        return {"message": "User create succesfully"}
-    return {"messag": "Something went wrong"}
+    userDb = await userFactory.create_user(db, user)
+    Checker.createUser(db, userDb)
+    return {"messag": "user created succesfully"}
 
-@app.post("/newUser/list")
+@app.post("/newUsers")
 async def newUser(
     users: List[schemas.UserCreate], 
     _: Annotated[schemas.AuthUser, Depends(auth.getCurrActiveUser)],
     db: Session = Depends(database.getDB)) -> dict:
     
     tasks = [userFactory.create_user(db, user) for user in users]
-    results = await asyncio.gather(*tasks)
-    for result in results:
-        if result is None:
-            return {"messag": "Something went wrong"}
+    users = await asyncio.gather(*tasks)
+    for user in users:
+        Checker.userExists(db, user.username)
+        Checker.createUser(db, user)
     return {"message": "Users create succesfully"}

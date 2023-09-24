@@ -4,6 +4,13 @@ import sys
 import os
 
 PARAMS = os.environ["PARAMS"]
+ENTRY = 0
+EXIT = 1
+ACTIVATE = 2
+DEACTIVATE = 3
+
+STATE_ACTIVATE = True
+STATE_DEACTIVATE = False
 
 try:
     with open(PARAMS, 'r') as config_file:

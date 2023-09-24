@@ -51,6 +51,24 @@ services:
 
     restart: always
 
+  expo:
+
+    build:
+      context: ./requirements/expo
+      dockerfile: ./Dockerfile
+
+    volumes:
+      - expo_src:/app/SharePot
+
+    ports:
+      - 19000:19000
+      - 19001:19001
+
+    networks:
+      - fastapi
+
+    entrypoint: expo start SharePot #/tmp/docker-entrypoint.sh
+
 networks:
         fastapi:
                 name: fastapi
@@ -91,3 +109,11 @@ volumes:
       type: none
       o: bind
       device: ./log/postgres
+
+  expo_src:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./requirements/expo/src
+

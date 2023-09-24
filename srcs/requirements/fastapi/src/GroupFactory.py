@@ -2,27 +2,36 @@ from sqlalchemy.orm import Session
 
 from fastapi import  HTTPException
 from dataclasses import dataclass
-from . import crud, schemas
+from . import schemas, models
 from .Logger import logger
 from .Checker import Checker
 
 @dataclass
 class GroupFactory:
 
+    @staticmethod
+    def createGroup(db: Session, group: schemas.GroupCreate):
 
-    def createGroup(self, db: Session, group: schemas.GroupCreate):
-        groupDb = Checker.existsGroup(db, group.name)
-        Checker.checkGroup(groupDb)
+        Checker.groupExists(db, group.name)
 
-        userDb = Checker.existsUser(db, group.admin)
-        Checker.checkUser(userDb)
+        userId = Checker.userNotExists(db, group.admin)
 
-        userIds = Checker.existsUserList(db, group.user_list)
-        Checker.checkUserList(userIds)
+        _ = Checker.getUserList(db, group.user_list)
 
-        groupDb = crud.createGroup(db, group, userDb.id)
-        if groupDb is None:
-            raise HTTPException(status_code=400, detail="Error: Group creation failed")
+        groupDb = models.Group(
+            name=group.name,
+            description=group.description,
+            admin_user_id=userId,
+            tax=group.tax,
+            balance=0
+            )
 
-        logger.logger.debug(userIds)
-        crud.connecUserListWithGroup(db, groupDb.id, userIds)
+        return groupDb
+
+    def createRecord(db: Session, userId: int, groupId: int, date: int, state: int):
+        return models.HistoryMoves(
+            date =  date,
+            user_id = userId,
+            group_id = groupId,
+            state = state
+        )

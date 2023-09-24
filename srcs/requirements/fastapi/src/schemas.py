@@ -11,19 +11,26 @@ class User(BaseModel):
                       regex="^[a-zA-Z0-9_-]+$",
                       description="Nombre de usuario")
 
-    password: str = Query(min_length=8,
-                          max_length=16,
-                          regex="^[a-zA-Z0-9_-]+$",
-                          description="Contrasena de usuario")
+    password: str = Query(min_length=12,
+                          max_length=12)
 
     email: str = Query(regex="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
                        description="Email address")
+
+    phone_number: str = Query(min_length="9",
+                              max_length="10",
+                              regex="^[0-9]+$")
 
     def setPassword(self, password):
         self.password = password
 
 class UserCreate(User):
     card_information: Card | None = None
+
+    password: str = Query(min_length=8,
+                          max_length=16,
+                          regex="^[a-zA-Z0-9_-]+$",
+                          description="Contrasena de usuario")
     model_config = {
         "json_schema_extra": {
             "examples": [

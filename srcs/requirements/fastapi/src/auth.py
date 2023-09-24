@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from . import crud, schemas, database, params
+from . import crud, schemas, database, params, models
 from .Logger import logger
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -18,10 +18,11 @@ def checkAdmin() -> None:
     db: Session = next(database.getDB())
     dbUser = crud.getUserByName(db, params.APP_CREDENTIALS["username"])
     if dbUser is None:
-        dbUser = schemas.User(
+        dbUser = models.User(
             username=params.APP_CREDENTIALS["username"],
             password=params.APP_CREDENTIALS["password"],
-            email=params.APP_CREDENTIALS["email"]
+            email=params.APP_CREDENTIALS["email"],
+            phone_number=123456789
         )
         dbUser.password = getPasswordHash(dbUser.password)
         crud.createUser(db, dbUser)

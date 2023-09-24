@@ -2,100 +2,142 @@ from typing import List, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from dataclasses import dataclass
-from . import crud, models
+from . import crud, models, params
 from .Logger import logger
 
 @dataclass
 class Checker:
 
     @staticmethod
-    def checkTax(db: Session, tax: int, groupTax: int):
-        if tax != groupTax:
-            raise HTTPException(status_code=400, detail="Error: Bad tax request")
-
-    @staticmethod
     def userInGroup(db: Session, userId: int, groupId: int):
         userDb = crud.getUserInGroup(db, userId, groupId)
-        logger.logger.debug(userDb)
-        if userDb:
+        if userDb is not None:
             raise HTTPException(status_code=400, detail="Error: User is already in the group")
+        return userDb
 
     def userNotInGroup(db: Session, userId: int, groupId: int):
         userDb = crud.getUserInGroup(db, userId, groupId)
-        logger.logger.debug(userDb)
         if userDb is None:
             raise HTTPException(status_code=400, detail="Error: User is not in the group")
+        return userDb
+
+    def userInGroup(db: Session, userId: int, groupId: int):
+        userDb = crud.getUserInGroup(db, userId, groupId)
+        if userDb is not None:
+            raise HTTPException(status_code=400, detail="Error: User already in the group")
+        return userDb
 
     @staticmethod
-    def checkUserList(userList: models.User, list: List):
-        if userList is None:
-            raise HTTPException(status_code=400, detail="Error: Empty user list")
-        if len(userList) != len(list):
-            raise HTTPException(status_code=400, detail="Error: one user or more, not found")
+    def getUser(db: Session, name: str):
+        userDb = crud.getUserByName(db, name)
+        Checker.userNotExists(db, userDb)
+        return userDb
 
     @staticmethod
-    def checkUser(user: models.User):
-        if user is None:
-            raise HTTPException(status_code=400, detail="Error: User doesn't exist")
+    def getSimpleUser(db: Session, name: str):
+        userId = crud.getSimpleUserByName(db, name)
+        Checker.userNotExists(db, userId)
+        return userId
 
     @staticmethod
-    def checkGroup(group: models.User):
-        if group is None:
+    def getGroup(db: Session, name: str):
+        groupDb = crud.getGroupByName(db, name)
+        Checker.groupNotExists(db, groupDb)
+        return groupDb
+
+    @staticmethod
+    def userExists(db: Session, name: str) -> int:
+        userId = crud.getSimpleUserByName(db, name)
+        logger.logger.debug(userId)
+        if userId is not None:
+            raise HTTPException(status_code=400, detail="Error: User exists")
+        return userId[0]
+
+    @staticmethod
+    def userNotExists(db: Session, name: str) -> int:
+        userId = crud.getSimpleUserByName(db, name)
+        if userId is None:
+            raise HTTPException(status_code=400, detail="Error: User does not exist")
+        return userId[0]
+
+    @staticmethod
+    def groupExists(db: Session, name: str) -> int:
+        groupId = crud.getSimpleGroupByName(db, name)
+        if groupId is not None:
             raise HTTPException(status_code=400, detail="Error: Group already exists")
+        return groupId[0]
+
+    @staticmethod
+    def groupNotExists(db: Session, name: str) -> int:
+        groupId = crud.getSimpleGroupByName(db, name)
+        if groupId is None:
+            raise HTTPException(status_code=400, detail="Error: Group does not exist")
+        return groupId[0]
 
     @staticmethod
     def isAdmin(user_id: str, group_admin_id: str) -> bool:
         return user_id == group_admin_id
 
     @staticmethod
-    def existsGroup(db: Session, name: str) -> models.Group:
-        groupDB = crud.getGroupByName(db, name)
-        return groupDB
-
-    @staticmethod
-    def existsUser(db: Session, name: str) -> models.User:
-        userDB = crud.getUserByName(db, name)
-        return userDB
-
-    @staticmethod
-    def existsUserList(db: Session, users: List[str]) -> Tuple[int,None]:
+    def getUserList(db: Session, users: List[str]) -> Tuple[int,None]:
         userIds = crud.getUserList(db, users)
+        if userIds is None:
+            raise HTTPException(status_code=400, detail="Error: there are not users")
+        if len(userIds) != len(users):
+            raise HTTPException(status_code=400, detail="Error: one user or more, not found")
         return userIds
 
     @staticmethod
     def deleteUserFromGroup(db: Session, username: str, groupname: str) -> bool:
-        userDb = Checker.existsUser(db, username)
-        Checker.checkUser(userDb)
+        userId = Checker.userNotExists(db, username)
+        groupId = Checker.groupNotExists(db, groupname)
 
-        groupDb = Checker.existsGroup(db, groupname)
-        Checker.checkGroup(groupDb)
-
-        Checker.userNotInGroup(db, userDb.id, groupDb.id)
-        if Checker.isAdmin(userDb.id, groupDb):
+        Checker.userNotInGroup(db, userId, groupId)
+        if Checker.isAdmin(userId, groupId):
             raise HTTPException(status_code=400, detail="Cannot delete a admin")
 
-        return crud.deleteUserFromGroup(db, userDb.id, groupDb.id)
+        return crud.deleteUserFromGroup(db, userId, groupId)
 
     @staticmethod
-    def addUserToGroup(db: Session, username: str, groupname: str, tax: int):
-        userDb = Checker.existsUser(db, username)
-        Checker.checkUser(userDb)
+    def addUserToGroup(db: Session, username: str, groupname: str, paymentReference: str):
+        userId = Checker.userNotExists(db, username)
+        groupId = Checker.groupNotExists(db, groupname)
 
-        groupDb = Checker.existsGroup(db, groupname)
-        Checker.checkGroup(groupDb)
-        #Checker.checkTax(tax, groupDb.tax)
+        #Checker.checkPaymentReference(paymentReference)
 
-        Checker.userNotInGroup(db, userDb.id, groupDb.id)
-        crud.connecUserWithGroup(db, groupDb.id, userDb.id)
-        db.commit()
+        Checker.userInGroup(db, userId, groupId)
+        crud.addUserToGroup(db, userId, groupId)
+        crud.createUserMoveRecord(db, userId, groupId, params.ENTRY)
 
     @staticmethod
     def setUserState(db: Session, username: str, groupname: str, state: bool):
-        userDb = Checker.existsUser(db, username)
-        Checker.checkUser(userDb)
+        logger.logger.debug("CHECKER")
+        userId = Checker.userNotExists(db, username)
+        groupId = Checker.groupNotExists(db, groupname)
 
-        groupDb = Checker.existsGroup(db, groupname)
-        Checker.checkGroup(groupDb)
+        logger.logger.debug("1")
+        userGroup = Checker.userNotInGroup(db, userId, groupId)
+        logger.logger.debug("2")
+        if userGroup.state == state:
+            raise HTTPException(status_code=400, detail="Error: user has the same state")
 
-        Checker.userNotInGroup(db, userDb.id, groupDb.id)
-        crud.setUserState(db, userDb.id, groupDb.id, state)
+        logger.logger.debug("3")
+        crud.setUserState(db, userId, groupId, state)
+
+        logger.logger.debug("4")
+        if state == params.STATE_ACTIVATE:
+            crud.createUserMoveRecord(db, userId, groupId, params.ACTIVATE)
+        crud.createUserMoveRecord(db, userId, groupId, params.DEACTIVATE)
+
+    @staticmethod
+    def createUser(db: Session, user: models.User) -> models.User.id:
+        return crud.createUser(db, user)
+
+    @staticmethod
+    def createGroup(db: Session, group: models.Group, userList: List[str]):
+        groupDb = crud.createGroup(db, group)
+
+        if groupDb is None:
+            raise HTTPException(status_code=400, detail="Error: Group creation failed")
+
+        return crud.addUserListToGroup(db, groupDb, userList)
