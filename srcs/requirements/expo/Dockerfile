@@ -1,10 +1,12 @@
 FROM node:20.7
 
-RUN mkdir -p /app /log
+RUN mkdir -p /log
 
-WORKDIR app
+WORKDIR /app
 
 RUN npm install -g expo-cli \
 	&& expo init --template blank SharePot
+
+RUN npm install react-router-dom
 
 COPY ./tools /tmp

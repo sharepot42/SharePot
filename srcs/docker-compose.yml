@@ -1,3 +1,5 @@
+x-project-name: sharepot
+
 services:
 
   fastapi:
